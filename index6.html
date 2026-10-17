@@ -1,0 +1,1280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BudgetBestie – Smart Student Budget Planner</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f3ff;
+    --card: #ffffff;
+    --text: #2a2340;
+    --muted: #6f6789;
+    --primary: #7c4dff;
+    --primary-dark: #5e35d6;
+    --accent: #ff6fae;
+    --border: #e6e0f7;
+    --soft: #f1ebff;
+    --good: #2bb673;
+    --warn: #f5a524;
+    --radius: 18px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+  header {
+    background: linear-gradient(135deg, var(--primary), var(--accent));
+    color: white;
+    padding: 28px 16px 60px;
+    text-align: center;
+  }
+  header h1 { font-size: 2rem; letter-spacing: -0.5px; }
+  header p { opacity: 0.9; margin-top: 6px; }
+  main {
+    max-width: 760px;
+    margin: -40px auto 40px;
+    padding: 0 16px;
+  }
+  .card {
+    background: var(--card);
+    border-radius: var(--radius);
+    box-shadow: 0 10px 30px rgba(90, 60, 180, 0.12);
+    padding: 28px;
+  }
+  .hidden { display: none !important; }
+
+  /* Progress bar */
+  .progress { height: 8px; background: var(--border); border-radius: 99px; overflow: hidden; margin-bottom: 8px; }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--primary), var(--accent)); width: 0; transition: width 0.4s ease; }
+  .step-label { font-size: 0.85rem; color: var(--muted); margin-bottom: 20px; }
+
+  h2 { font-size: 1.4rem; margin-bottom: 6px; }
+  .hint { color: var(--muted); margin-bottom: 20px; font-size: 0.95rem; }
+
+  /* Option buttons */
+  .options { display: grid; gap: 12px; }
+  .option {
+    display: flex; align-items: center; gap: 14px;
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+    cursor: pointer;
+    background: white;
+    font-size: 1rem;
+    text-align: left;
+    transition: all 0.15s ease;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .option:hover { border-color: var(--primary); transform: translateY(-1px); }
+  .option.selected { border-color: var(--primary); background: var(--soft); }
+  .option .emoji { font-size: 1.6rem; }
+  .option small { display: block; color: var(--muted); font-size: 0.85rem; }
+  .option .opt-text { flex: 1; }
+  .option .check {
+    width: 24px; height: 24px; border-radius: 7px; border: 2px solid var(--border);
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+    color: transparent; font-size: 0.85rem; font-weight: 800;
+  }
+  .option.selected .check { background: var(--primary); border-color: var(--primary); color: white; }
+
+  /* Personality (1–5 rating) questions */
+  .section-tag {
+    display: inline-block;
+    background: linear-gradient(90deg, var(--primary), var(--accent));
+    color: white;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    padding: 3px 10px;
+    border-radius: 99px;
+    margin-bottom: 10px;
+  }
+  .likert-item { border: 2px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; }
+  .likert-item.done { border-color: #d6c9ff; }
+  .likert-text { font-weight: 600; margin-bottom: 10px; }
+  .likert-scale { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  .likert-btn {
+    border: 2px solid var(--border);
+    background: white;
+    border-radius: 10px;
+    padding: 8px 0;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .likert-btn:hover { border-color: var(--primary); }
+  .likert-btn.selected { background: var(--primary); border-color: var(--primary); color: white; }
+  .likert-ends { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); margin-top: 6px; }
+
+  /* Subscription chips */
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 18px; }
+  .chip {
+    border: 2px solid var(--border);
+    border-radius: 99px;
+    padding: 8px 14px;
+    cursor: pointer;
+    background: white;
+    font-size: 0.95rem;
+    color: var(--text);
+    font-family: inherit;
+  }
+  .chip.selected { border-color: var(--primary); background: var(--soft); }
+  .chip small { color: var(--muted); }
+
+  label.field { display: block; font-weight: 600; margin-bottom: 6px; }
+  .input-row { display: flex; gap: 10px; flex-wrap: wrap; }
+  input[type=number], select {
+    font-size: 1.1rem;
+    padding: 12px 14px;
+    border: 2px solid var(--border);
+    border-radius: 12px;
+    outline: none;
+    font-family: inherit;
+    color: var(--text);
+    background: white;
+  }
+  input[type=number] { flex: 1; min-width: 140px; }
+  input:focus, select:focus { border-color: var(--primary); }
+  .money-wrap { position: relative; flex: 1; min-width: 160px; display: flex; }
+  .money-wrap span { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); font-size: 1.1rem; color: var(--muted); }
+  .money-wrap input { padding-left: 30px; width: 100%; }
+
+  .nav { display: flex; justify-content: space-between; margin-top: 26px; gap: 10px; }
+  .btn {
+    border: none;
+    border-radius: 12px;
+    padding: 12px 22px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-primary:hover { background: var(--primary-dark); }
+  .btn-ghost { background: transparent; color: var(--muted); }
+  .btn-ghost:hover { color: var(--text); }
+  .error { color: #d93b5c; font-size: 0.9rem; margin-top: 8px; min-height: 1.2em; }
+
+  /* Results */
+  .mode-pill {
+    display: inline-block;
+    background: var(--soft);
+    color: var(--primary-dark);
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border-radius: 99px;
+    margin-bottom: 10px;
+  }
+
+  /* Personality result card */
+  .persona {
+    background: linear-gradient(135deg, #f1ebff, #ffe9f3);
+    border-radius: 16px;
+    padding: 20px;
+    margin: 6px 0 24px;
+  }
+  .persona-head { display: flex; align-items: center; gap: 14px; margin-bottom: 8px; }
+  .persona-emoji { font-size: 2.4rem; }
+  .persona-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; font-weight: 700; }
+  .persona-name { font-size: 1.3rem; font-weight: 800; }
+  .persona-desc { color: var(--text); margin-bottom: 16px; font-size: 0.95rem; }
+  .traits { display: grid; gap: 12px; }
+  .trait-top { display: flex; justify-content: space-between; font-size: 0.9rem; font-weight: 600; }
+  .trait-top span:last-child { color: var(--muted); font-weight: 400; }
+  .trait-track { position: relative; height: 8px; border-radius: 99px; background: rgba(124, 77, 255, 0.15); margin: 6px 0 2px; }
+  .trait-dot {
+    position: absolute; top: 50%; width: 18px; height: 18px; border-radius: 50%;
+    background: var(--primary); border: 3px solid white; transform: translate(-50%, -50%);
+    box-shadow: 0 2px 6px rgba(90, 60, 180, 0.35);
+  }
+  .trait-ends { display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--muted); }
+  .persona-effects { margin-top: 16px; display: grid; gap: 6px; font-size: 0.9rem; }
+  .persona-note { margin-top: 12px; font-size: 0.75rem; color: var(--muted); }
+
+  .tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 18px 0 22px; }
+  .tab {
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 8px;
+    background: white;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    position: relative;
+  }
+  .tab .tab-emoji { display: block; font-size: 1.4rem; }
+  .tab .tab-total { display: block; font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+  .tab.active { border-color: var(--primary); background: var(--soft); }
+  .badge {
+    position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+    background: var(--accent); color: white;
+    font-size: 0.7rem; padding: 2px 8px; border-radius: 99px; white-space: nowrap;
+  }
+  .plan-desc { color: var(--muted); margin-bottom: 14px; }
+
+  .view-toggle { display: flex; justify-content: center; gap: 6px; margin-bottom: 16px; }
+  .view-toggle button {
+    border: 2px solid var(--border); background: white; border-radius: 99px;
+    padding: 6px 16px; font-family: inherit; font-weight: 600; cursor: pointer; color: var(--muted);
+  }
+  .view-toggle button.active { border-color: var(--primary); background: var(--soft); color: var(--primary-dark); }
+
+  .chart-wrap { position: relative; max-width: 320px; margin: 0 auto 24px; }
+  .chart-center {
+    position: absolute; inset: 0; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; pointer-events: none;
+  }
+  .chart-center strong { font-size: 1.6rem; }
+  .chart-center span { color: var(--muted); font-size: 0.85rem; }
+
+  .cat-list { display: grid; gap: 12px; }
+  .cat {
+    display: grid;
+    grid-template-columns: 36px 1fr auto;
+    align-items: center;
+    gap: 12px;
+  }
+  .cat-icon {
+    width: 36px; height: 36px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center; font-size: 1.1rem;
+  }
+  .cat-name { font-weight: 600; }
+  .cat-bar { height: 6px; background: var(--border); border-radius: 99px; margin-top: 4px; overflow: hidden; }
+  .cat-bar div { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+  .cat-amount { text-align: right; font-weight: 700; }
+  .cat-amount small { display: block; font-weight: 400; color: var(--muted); font-size: 0.8rem; }
+
+  .section-title { font-size: 1.1rem; margin: 28px 0 12px; }
+  .tips { display: grid; gap: 10px; }
+  .tip {
+    background: #faf8ff;
+    border-left: 4px solid var(--primary);
+    padding: 12px 14px;
+    border-radius: 10px;
+    font-size: 0.95rem;
+  }
+  .tip.warn { border-left-color: var(--warn); background: #fffaf0; }
+  .tip.good { border-left-color: var(--good); background: #f2fbf6; }
+  .tip.persona-tip { border-left-color: var(--accent); background: #fff4f9; }
+  .actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 26px; justify-content: center; }
+
+  footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding: 0 16px 30px; }
+
+  @media (max-width: 520px) {
+    .card { padding: 20px; }
+    header h1 { font-size: 1.6rem; }
+    .tab { font-size: 0.8rem; }
+    .likert-btn { padding: 8px 0; font-size: 0.95rem; }
+  }
+
+  /* ===== Tips sidebar layout ===== */
+  main.wide { max-width: 1180px; }
+  .results-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 360px;   /* results on the left, tips on the right */
+    gap: 20px;
+    align-items: start;
+  }
+  .tips-panel {
+    position: sticky;            /* tips stay in view while you scroll */
+    top: 20px;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    padding: 22px;
+  }
+  .tips-panel .section-title { margin-top: 0; }
+  @media (max-width: 960px) {    /* on phones and small screens, tips go back underneath */
+    .results-layout { grid-template-columns: 1fr; }
+    .tips-panel { position: static; max-height: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>BudgetBestie</h1>
+  <p>The London student budget planner, built around how you spend <em>and</em> who you are.</p>
+</header>
+
+<main>
+  <!-- QUESTIONNAIRE -->
+  <section id="quiz" class="card">
+    <div class="progress"><div class="progress-fill" id="progressFill"></div></div>
+    <div class="step-label" id="stepLabel"></div>
+    <div id="questionArea"></div>
+    <div class="error" id="errorMsg"></div>
+    <div class="nav">
+      <button class="btn btn-ghost" id="backBtn">← Back</button>
+      <button class="btn btn-primary" id="nextBtn">Next →</button>
+    </div>
+  </section>
+
+  <!-- RESULTS + TIPS SIDEBAR -->
+  <div class="results-layout">
+  <section id="results" class="card hidden">
+    <span class="mode-pill" id="modePill"></span>
+    <h2 id="resultsTitle">Your recommended plans</h2>
+    <p class="hint" id="resultsIntro"></p>
+
+    <div class="persona" id="persona"></div>
+
+    <div class="tabs" id="tabs"></div>
+    <p class="plan-desc" id="planDesc"></p>
+
+    <div class="view-toggle">
+      <button id="viewMonth">Monthly</button>
+      <button id="viewWeek">Weekly</button>
+    </div>
+
+    <div class="chart-wrap">
+      <canvas id="chart"></canvas>
+      <div class="chart-center">
+        <strong id="centerTotal"></strong>
+        <span id="centerLabel"></span>
+      </div>
+    </div>
+
+    <div class="cat-list" id="catList"></div>
+
+    <div class="actions">
+      <button class="btn btn-ghost" id="editBtn">✏️ Change my answers</button>
+      <button class="btn btn-primary" id="restartBtn">↺ Start over</button>
+    </div>
+  </section>
+
+  <aside id="tipsPanel" class="card tips-panel hidden">
+    <h3 class="section-title">💡 Tips for you</h3>
+    <div class="tips" id="tips"></div>
+  </aside>
+  </div>
+</main>
+
+<footer>Built at the IKU Womxn in STEM Hackathon 2026 · London prices checked October 2026 (TfL fares from 1 March 2026, 18+ Student Oyster prices, Save the Student 2026 survey) · Personality items from the public-domain International Personality Item Pool (ipip.ori.org) · Your answers stay in your browser.</footer>
+
+<script>
+/* =========================================================
+   1. CATEGORIES
+   ========================================================= */
+const CATEGORIES = {
+  groceries:     { name: "Groceries",           icon: "🛒", color: "#2bb673" },
+  social:        { name: "Social & Eating Out", icon: "🍕", color: "#ff6fae" },
+  entertainment: { name: "Entertainment",       icon: "🎬", color: "#7c4dff" },
+  transport:     { name: "Transport",           icon: "🚇", color: "#3ba7f5" },
+  shopping:      { name: "Shopping & Personal", icon: "🛍️", color: "#f5a524" },
+  subscriptions: { name: "Subscriptions",       icon: "📱", color: "#9b8cc4" },
+  buffer:        { name: "Flex Buffer",         icon: "🌟", color: "#f97362" },
+  savings:       { name: "Savings",             icon: "💷", color: "#14b8a6" }
+};
+
+/* Starting weights (used in "plan around my budget" mode). */
+const BASE_WEIGHTS = { groceries: 15, social: 4, entertainment: 3, transport: 0, shopping: 3, savings: 6 };
+
+/* Starting £ costs everyone has (used in "suggest a budget" mode):
+   basics like toiletries and cleaning, plus a small savings buffer. */
+const BASE_COSTS = { groceries: 25, social: 0, entertainment: 0, transport: 0, shopping: 0, savings: 10 };
+
+/* =========================================================
+   2. MONEY PERSONALITY TRAITS
+   Items come from the public-domain IPIP (ipip.ori.org).
+   key: +1 = positively keyed, -1 = reverse-scored.
+   Score = average of item scores (1.0 – 5.0).
+   Levels use the same bands as the research brief:
+   1.0–2.6 = low, 2.61–3.4 = balanced, 3.41–5.0 = high.
+   ========================================================= */
+const TRAITS = {
+  structure: {
+    name: "Structure", low: "Go with the flow", high: "Planner",
+    source: "IPIP Methodicalness & Organisation",
+    items: [
+      { id: "st1", text: "I like order.", key: 1 },
+      { id: "st2", text: "I make plans and stick to them.", key: 1 },
+      { id: "st3", text: "I act without planning.", key: -1 }
+    ]
+  },
+  impulse: {
+    name: "Spontaneity", low: "Cautious", high: "Spontaneous",
+    source: "IPIP Risk-Taking & BAS Fun-Seeking",
+    items: [
+      { id: "im1", text: "I like to act on a whim.", key: 1 },
+      { id: "im2", text: "I am willing to try anything once.", key: 1 },
+      { id: "im3", text: "I stick to the rules.", key: -1 }
+    ]
+  },
+  social: {
+    name: "Social battery", low: "Recharges solo", high: "Social butterfly",
+    source: "IPIP Gregariousness & Extraversion",
+    items: [
+      { id: "so1", text: "I make friends easily.", key: 1 },
+      { id: "so2", text: "I talk to a lot of different people at parties.", key: 1 },
+      { id: "so3", text: "I keep in the background.", key: -1 }
+    ]
+  },
+  calm: {
+    name: "Calm under pressure", low: "Feels the pressure", high: "Unflappable",
+    source: "IPIP Emotional Stability & BIS/Anxiety (reversed)",
+    items: [
+      { id: "ca1", text: "I am relaxed most of the time.", key: 1 },
+      { id: "ca2", text: "I readily overcome setbacks.", key: 1 },
+      { id: "ca3", text: "I get stressed out easily.", key: -1 }
+    ]
+  }
+};
+
+/* =========================================================
+   3. QUESTIONS
+   - "adds"  = points added to category weights (used to SPLIT a budget)
+   - "costs" = rough £ per month for that habit (used to SUGGEST a budget)
+   - "likert" = a page of personality statements rated 1–5
+   ========================================================= */
+// Approximate UK monthly prices (checked October 2026)
+const SUBSCRIPTION_OPTIONS = [
+  { id: "spotify",  label: "Spotify Student",       price: 5.99 },
+  { id: "netflix",  label: "Netflix (with ads)",    price: 7.99 },
+  { id: "netflixs", label: "Netflix Standard",      price: 13.99 },
+  { id: "disney",   label: "Disney+ (with ads)",    price: 5.99 },
+  { id: "prime",    label: "Amazon Prime Student",  price: 4.49 },
+  { id: "icloud",   label: "iCloud / Google storage", price: 2.99 },
+  { id: "gym",      label: "London gym",            price: 35 },
+  { id: "phone",    label: "Phone / SIM plan",      price: 12 }
+];
+
+const LIKERT_HINT = "How accurately does each statement describe you? 1 = Very inaccurate, 5 = Very accurate. There are no right answers.";
+
+const QUESTIONS = [
+  {
+    id: "mode", type: "choice",
+    title: "How would you like BudgetBestie to help?",
+    hint: "You can come back and switch this any time.",
+    options: [
+      { emoji: "💷", text: "Plan around my budget", sub: "I know how much I get each month – split it for me", mode: "budget" },
+      { emoji: "🔮", text: "Suggest a budget for me", sub: "Work out how much I need from my habits", mode: "suggest" }
+    ]
+  },
+  {
+    id: "budget", type: "budget",
+    onlyInMode: "budget",
+    title: "What's your budget?",
+    hint: "Enter the money you have for day-to-day spending (after rent and bills)."
+  },
+  {
+    id: "minBudget", type: "minbudget",
+    onlyInMode: "suggest",
+    title: "What's the minimum you'll have each month?",
+    hint: "The least you can count on for day-to-day spending after rent and bills (e.g. from your student loan, job or family). Your suggested budget will never go below this, and we'll warn you if your habits cost more."
+  },
+  // ---- Money personality (IPIP) ----
+  { id: "p_structure", type: "likert", trait: "structure", tag: "Money personality · 1 of 4", title: "How do you like to organise things?", hint: LIKERT_HINT },
+  { id: "p_impulse",   type: "likert", trait: "impulse",   tag: "Money personality · 2 of 4", title: "How spontaneous are you?",           hint: LIKERT_HINT },
+  { id: "p_social",    type: "likert", trait: "social",    tag: "Money personality · 3 of 4", title: "How social are you?",                hint: LIKERT_HINT },
+  { id: "p_calm",      type: "likert", trait: "calm",      tag: "Money personality · 4 of 4", title: "How do you handle pressure?",        hint: LIKERT_HINT },
+  // ---- Spending habits (select all that apply) ----
+  // Monthly £ costs are rough London estimates (checked October 2026).
+  {
+    id: "food", type: "multi",
+    tag: "Your spending habits",
+    title: "How do you usually eat?",
+    hint: "Select all that apply. UK students spend about £155 a month on groceries on average.",
+    options: [
+      { id: "cookDinner",  emoji: "👩‍🍳", text: "Cook dinners at home",                 sub: "≈ £110/month in groceries",        adds: { groceries: 12 }, costs: { groceries: 110 } },
+      { id: "packLunch",   emoji: "🥪",  text: "Make breakfast and pack lunch",        sub: "≈ £45/month",                      adds: { groceries: 5 },  costs: { groceries: 45 } },
+      { id: "readyMeals",  emoji: "🥫",  text: "Ready meals, frozen food and snacks",  sub: "≈ £60/month",                      adds: { groceries: 6 },  costs: { groceries: 60 } },
+      { id: "campusLunch", emoji: "🍱",  text: "Buy lunch on campus or meal deals",    sub: "≈ £55/month (about 3 a week)",     adds: { social: 5 },     costs: { social: 55 } }
+    ]
+  },
+  {
+    id: "eatout", type: "multi",
+    title: "Which of these do you spend on in a typical month?",
+    hint: "Select all that apply.",
+    options: [
+      { id: "delivery",   emoji: "🛵", text: "Delivery apps (Deliveroo, Uber Eats…)", sub: "≈ £60/month", adds: { social: 6 }, costs: { social: 60 } },
+      { id: "takeaway",   emoji: "🍔", text: "Takeaway and fast food",               sub: "≈ £35/month", adds: { social: 4 }, costs: { social: 35 } },
+      { id: "restaurant", emoji: "🍝", text: "Sit-down restaurants",                 sub: "≈ £60/month", adds: { social: 6 }, costs: { social: 60 } },
+      { id: "coffee",     emoji: "☕", text: "Coffee shops and cafés",               sub: "≈ £30/month", adds: { social: 3 }, costs: { social: 30 } },
+      { id: "none",       emoji: "🙅‍♀️", text: "None of these", none: true }
+    ]
+  },
+  {
+    id: "goingout", type: "multi",
+    title: "What do you do when you go out?",
+    hint: "Select all that apply. The average London pint is about £6.55 (April 2026).",
+    options: [
+      { id: "pub",       emoji: "🍺", text: "Pubs and bars",                          sub: "≈ £55/month",                              adds: { social: 6 }, costs: { social: 55 } },
+      { id: "club",      emoji: "🪩", text: "Clubbing and club nights",               sub: "Entry, drinks and getting home ≈ £70/month", adds: { social: 7 }, costs: { social: 70 } },
+      { id: "society",   emoji: "🎓", text: "Society socials and events",             sub: "≈ £25/month",                              adds: { social: 3 }, costs: { social: 25 } },
+      { id: "occasions", emoji: "🎂", text: "Birthdays, dinners and special occasions", sub: "≈ £30/month",                             adds: { social: 3 }, costs: { social: 30 } },
+      { id: "none",      emoji: "🏠", text: "I rarely go out", none: true }
+    ]
+  },
+  {
+    id: "fun", type: "multi",
+    title: "What do you spend on for entertainment?",
+    hint: "Select all that apply.",
+    options: [
+      { id: "cinema",  emoji: "🎬", text: "Cinema",                         sub: "≈ £15/month",  adds: { entertainment: 2 }, costs: { entertainment: 15 } },
+      { id: "gigs",    emoji: "🎤", text: "Gigs and concerts",              sub: "≈ £35/month",  adds: { entertainment: 4 }, costs: { entertainment: 35 } },
+      { id: "theatre", emoji: "🎭", text: "Theatre, comedy and shows",      sub: "≈ £25/month",  adds: { entertainment: 3 }, costs: { entertainment: 25 } },
+      { id: "gaming",  emoji: "🎮", text: "Gaming",                         sub: "≈ £15/month",  adds: { entertainment: 2 }, costs: { entertainment: 15 } },
+      { id: "hobbies", emoji: "⚽", text: "Sport, classes and hobbies",     sub: "≈ £25/month",  adds: { entertainment: 3 }, costs: { entertainment: 25 } },
+      { id: "trips",   emoji: "🚆", text: "Day trips out of London",        sub: "≈ £30/month",  adds: { entertainment: 3 }, costs: { entertainment: 30 } },
+      { id: "none",    emoji: "📚", text: "None of these", none: true }
+    ]
+  },
+  {
+    // London transport uses 2026 TfL fares (Tube fares from 1 March 2026) and
+    // 18+ Student Oyster photocard prices (30% off Travelcards and Bus & Tram passes).
+    // "pass" = a fixed monthly cost. Options in the same "group" can't be picked together.
+    id: "transport", type: "multi",
+    title: "How do you get around London?",
+    hint: "Select all that apply (you can pick one Tube option). Prices assume an 18+ Student Oyster photocard.",
+    options: [
+      { id: "walk", emoji: "🚶‍♀️", text: "Walk or cycle",                                      sub: "Basically free",                                     adds: { transport: 1 }, costs: { transport: 5 } },
+      { id: "bus",  emoji: "🚌",  text: "Buses (student Bus & Tram pass)",                    sub: "≈ £66/month · covered if you also pick a Travelcard", pass: 66 },
+      { id: "payg", emoji: "🚇",  text: "Tube a few days a week (pay as you go)", group: "tube", sub: "Zones 1–2, ~3 days a week ≈ £95/month",            adds: { transport: 9 }, costs: { transport: 95 } },
+      { id: "z12",  emoji: "🎫",  text: "Tube most days – Zones 1–2 Travelcard", group: "tube",  sub: "Student monthly Travelcard £119.90",               pass: 120 },
+      { id: "z13",  emoji: "🏘️", text: "Tube most days – Zones 1–3 Travelcard", group: "tube",  sub: "Student monthly Travelcard £141",                  pass: 141 },
+      { id: "z14",  emoji: "🗺️", text: "Tube most days – Zones 1–4+ Travelcard", group: "tube", sub: "Student monthly Travelcard from £172.50",           pass: 173 },
+      { id: "rail", emoji: "🚆",  text: "Trains home or out of London",                       sub: "With a 16–25 Railcard ≈ £40/month",                  adds: { transport: 4 }, costs: { transport: 40 } },
+      { id: "taxi", emoji: "🚕",  text: "Taxis and Ubers",                                    sub: "≈ £30/month",                                        adds: { transport: 3 }, costs: { transport: 30 } }
+    ]
+  },
+  {
+    id: "shopping", type: "multi",
+    title: "What do you usually shop for?",
+    hint: "Select all that apply.",
+    options: [
+      { id: "clothes", emoji: "👗", text: "Clothes and shoes",            sub: "≈ £40/month", adds: { shopping: 4 }, costs: { shopping: 40 } },
+      { id: "beauty",  emoji: "💄", text: "Beauty, skincare and haircare", sub: "≈ £25/month", adds: { shopping: 3 }, costs: { shopping: 25 } },
+      { id: "tech",    emoji: "💻", text: "Tech and gadgets",             sub: "≈ £25/month", adds: { shopping: 3 }, costs: { shopping: 25 } },
+      { id: "books",   emoji: "📚", text: "Books and course materials",   sub: "≈ £15/month", adds: { shopping: 2 }, costs: { shopping: 15 } },
+      { id: "home",    emoji: "🏠", text: "Room and household bits",      sub: "≈ £15/month", adds: { shopping: 2 }, costs: { shopping: 15 } },
+      { id: "none",    emoji: "🧘‍♀️", text: "I rarely shop", none: true }
+    ]
+  },
+  {
+    id: "subs", type: "subs",
+    title: "Which subscriptions do you pay for?",
+    hint: "Tap all that apply (prices are rough monthly estimates). These are fixed costs, so they're counted first."
+  },
+  {
+    id: "savings", type: "multi",
+    title: "What are you saving for?",
+    hint: "Select all that apply.",
+    options: [
+      { id: "emergency", emoji: "🛟", text: "An emergency safety net",            sub: "≈ £30/month", adds: { savings: 6 }, costs: { savings: 30 } },
+      { id: "travel",    emoji: "✈️", text: "Travel and holidays",                sub: "≈ £40/month", adds: { savings: 6 }, costs: { savings: 40 } },
+      { id: "gifts",     emoji: "🎁", text: "Christmas, birthdays and gifts",     sub: "≈ £15/month", adds: { savings: 3 }, costs: { savings: 15 } },
+      { id: "bigbuy",    emoji: "💻", text: "A big purchase (laptop, phone…)",    sub: "≈ £30/month", adds: { savings: 5 }, costs: { savings: 30 } },
+      { id: "future",    emoji: "🏡", text: "Life after uni (deposit, moving)",   sub: "≈ £40/month", adds: { savings: 6 }, costs: { savings: 40 } },
+      { id: "none",      emoji: "😅", text: "Not right now – just getting by", none: true }
+    ]
+  },
+  {
+    id: "goal", type: "choice",
+    title: "Last one: what's your main money goal?",
+    hint: "We'll use this to pick which plan to recommend.",
+    options: [
+      { emoji: "📉", text: "Stop running out before the end of the month", plan: "saver" },
+      { emoji: "⚖️", text: "Find a healthy balance",                       plan: "balanced" },
+      { emoji: "🥳", text: "Enjoy uni life without the guilt",             plan: "social" }
+    ]
+  }
+];
+
+/* =========================================================
+   4. PLANS
+   ========================================================= */
+const PLANS = {
+  saver: {
+    name: "Saver", emoji: "🐷",
+    desc: "Cuts back on the extras so you build a safety net and don't run out early.",
+    multipliers:        { groceries: 1,   social: 0.6, entertainment: 0.6, transport: 0.9, shopping: 0.5, savings: 2.2 },
+    suggestMultipliers: { groceries: 0.9, social: 0.6, entertainment: 0.6, transport: 0.9, shopping: 0.5, savings: 1.5 }
+  },
+  balanced: {
+    name: "Balanced", emoji: "⚖️",
+    desc: "Matches your current habits closely, with a bit set aside for savings.",
+    multipliers:        { groceries: 1, social: 1, entertainment: 1, transport: 1, shopping: 1, savings: 1.2 },
+    suggestMultipliers: { groceries: 1, social: 1, entertainment: 1, transport: 1, shopping: 1, savings: 1 }
+  },
+  social: {
+    name: "Social", emoji: "🥳",
+    desc: "Gives more room for going out and fun, while still covering the essentials.",
+    multipliers:        { groceries: 0.95, social: 1.5, entertainment: 1.3, transport: 1, shopping: 0.9, savings: 0.5 },
+    suggestMultipliers: { groceries: 0.95, social: 1.3, entertainment: 1.2, transport: 1, shopping: 1,   savings: 0.5 }
+  }
+};
+
+/* =========================================================
+   5. APP STATE
+   ========================================================= */
+let step = 0;
+let answers = {};          // question id -> option index
+let ratings = {};          // personality item id -> 1..5
+let budget = { amount: "", period: "month" };
+let minBudget = "";        // minimum monthly budget (suggest mode)
+let selectedSubs = [];
+let otherSubs = "";
+let currentPlan = null;
+let viewPeriod = "month";  // "month" or "week"
+let chart = null;
+
+const $ = (id) => document.getElementById(id);
+
+function getMode() {
+  const q = QUESTIONS.find(q => q.id === "mode");
+  return answers.mode !== undefined ? q.options[answers.mode].mode : "budget";
+}
+
+function activeQuestions() {
+  return QUESTIONS.filter(q => !q.onlyInMode || q.onlyInMode === getMode());
+}
+
+/* =========================================================
+   6. PERSONALITY SCORING
+   ========================================================= */
+function traitScore(traitKey) {
+  const items = TRAITS[traitKey].items;
+  const scores = items.map(it => it.key > 0 ? ratings[it.id] : 6 - ratings[it.id]);
+  return scores.reduce((a, b) => a + b, 0) / scores.length;
+}
+
+function traitLevel(score) {
+  if (score <= 2.6) return "low";
+  if (score >= 3.41) return "high";
+  return "mid";
+}
+
+function personality() {
+  const p = {};
+  for (const key in TRAITS) {
+    const score = traitScore(key);
+    p[key] = { score, level: traitLevel(score) };
+  }
+  return p;
+}
+
+// Pick a fun "money personality" from the trait combination
+function archetype(p) {
+  const s = p.structure.level, i = p.impulse.level, so = p.social.level, c = p.calm.level;
+  if (i === "high" && so === "high") return { emoji: "🦋", name: "Spontaneous Socialiser", desc: "You love saying yes to plans – so your budget builds in room for last-minute fun instead of fighting it." };
+  if (s === "high" && c !== "low")   return { emoji: "🗂️", name: "Steady Planner", desc: "You like structure and stay cool under pressure. A detailed plan with clear limits will suit you well." };
+  if (s === "high" && c === "low")   return { emoji: "🛡️", name: "Careful Planner", desc: "You like being organised, and a safety net helps you feel secure – so we've built one in." };
+  if (i === "high" && s !== "high")  return { emoji: "🌈", name: "Free Spirit", desc: "Strict tracking isn't your style. Simple pots and a flexible buffer will work better than tight category limits." };
+  if (so === "low" && i === "low")   return { emoji: "🌙", name: "Quiet Saver", desc: "You're cautious and recharge on your own – you probably need less for socialising and can save more." };
+  return { emoji: "⚖️", name: "Balanced Budgeter", desc: "You sit in the middle on most traits, so a balanced plan with a small buffer is a great starting point." };
+}
+
+// % of spending money set aside as a flexible buffer, based on personality
+function bufferPercent(p) {
+  let pct = 0.03;
+  if (p.impulse.level === "high") pct += 0.05;
+  else if (p.impulse.level === "mid") pct += 0.02;
+  if (p.structure.level === "low") pct += 0.04;
+  if (p.calm.level === "low") pct += 0.03;
+  return Math.min(pct, 0.15);
+}
+
+// Social trait nudges how much of the budget goes to social spending
+function socialMultiplier(p) {
+  if (p.social.level === "high") return 1.2;
+  if (p.social.level === "low") return 0.85;
+  return 1;
+}
+
+/* =========================================================
+   7. RENDER A QUESTION
+   ========================================================= */
+function renderStep() {
+  const list = activeQuestions();
+  const q = list[step];
+  $("errorMsg").textContent = "";
+  $("progressFill").style.width = ((step + 1) / list.length * 100) + "%";
+  $("stepLabel").textContent = `Question ${step + 1} of ${list.length}`;
+  $("backBtn").style.visibility = step === 0 ? "hidden" : "visible";
+  $("nextBtn").textContent = step === list.length - 1 ? "See my plans ✨" : "Next →";
+
+  let html = q.tag ? `<span class="section-tag">${q.tag}</span>` : "";
+  html += `<h2>${q.title}</h2>`;
+  if (q.hint) html += `<p class="hint">${q.hint}</p>`;
+
+  if (q.type === "budget") {
+    html += `
+      <label class="field" for="budgetInput">Amount</label>
+      <div class="input-row">
+        <div class="money-wrap"><span>£</span>
+          <input type="number" id="budgetInput" min="1" placeholder="e.g. 600" value="${budget.amount}">
+        </div>
+        <select id="periodSelect">
+          <option value="month" ${budget.period === "month" ? "selected" : ""}>per month</option>
+          <option value="week" ${budget.period === "week" ? "selected" : ""}>per week</option>
+        </select>
+      </div>`;
+  }
+
+  if (q.type === "minbudget") {
+    html += `
+      <label class="field" for="minInput">Minimum per month</label>
+      <div class="money-wrap"><span>£</span>
+        <input type="number" id="minInput" min="1" placeholder="e.g. 400" value="${minBudget}">
+      </div>`;
+  }
+
+  if (q.type === "choice") {
+    html += `<div class="options">` + q.options.map((o, i) => `
+      <button class="option ${answers[q.id] === i ? "selected" : ""}" data-index="${i}">
+        <span class="emoji">${o.emoji}</span>
+        <span>${o.text}${o.sub ? `<small>${o.sub}</small>` : ""}</span>
+      </button>`).join("") + `</div>`;
+  }
+
+  if (q.type === "multi") {
+    const sel = answers[q.id] || [];
+    html += `<div class="options">` + q.options.map((o, i) => `
+      <button class="option ${sel.includes(i) ? "selected" : ""}" data-multi="${i}">
+        <span class="emoji">${o.emoji}</span>
+        <span class="opt-text">${o.text}${o.sub ? `<small>${o.sub}</small>` : ""}</span>
+        <span class="check">✓</span>
+      </button>`).join("") + `</div>`;
+  }
+
+  if (q.type === "likert") {
+    html += TRAITS[q.trait].items.map(it => `
+      <div class="likert-item ${ratings[it.id] ? "done" : ""}">
+        <div class="likert-text">${it.text}</div>
+        <div class="likert-scale">
+          ${[1, 2, 3, 4, 5].map(n => `
+            <button class="likert-btn ${ratings[it.id] === n ? "selected" : ""}" data-item="${it.id}" data-value="${n}">${n}</button>`).join("")}
+        </div>
+        <div class="likert-ends"><span>Very inaccurate</span><span>Very accurate</span></div>
+      </div>`).join("");
+  }
+
+  if (q.type === "subs") {
+    html += `<div class="chips">` + SUBSCRIPTION_OPTIONS.map(s => `
+      <button class="chip ${selectedSubs.includes(s.id) ? "selected" : ""}" data-sub="${s.id}">
+        ${s.label} <small>~£${s.price}</small>
+      </button>`).join("") + `</div>
+      <label class="field" for="otherSubs">Anything else? (£ per month)</label>
+      <div class="money-wrap"><span>£</span>
+        <input type="number" id="otherSubs" min="0" placeholder="0" value="${otherSubs}">
+      </div>`;
+  }
+
+  $("questionArea").innerHTML = html;
+
+  // Single-choice questions: pick one and move on
+  document.querySelectorAll("[data-index]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      answers[q.id] = Number(btn.dataset.index);
+      renderStep();
+      setTimeout(next, 250);   // auto-advance
+    });
+  });
+  // Multi-select questions: tap to toggle
+  document.querySelectorAll("[data-multi]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const i = Number(btn.dataset.multi);
+      const opt = q.options[i];
+      let sel = answers[q.id] ? [...answers[q.id]] : [];
+      if (sel.includes(i)) {
+        sel = sel.filter(x => x !== i);                 // untick
+      } else if (opt.none) {
+        sel = [i];                                      // "None" clears everything else
+      } else {
+        sel = sel.filter(x => !q.options[x].none &&     // ticking something clears "None"
+          !(opt.group && q.options[x].group === opt.group));  // only one option per group
+        sel.push(i);
+      }
+      answers[q.id] = sel;
+      renderStep();
+    });
+  });
+  document.querySelectorAll(".likert-btn").forEach(btn => {
+    btn.addEventListener("click", () => {
+      ratings[btn.dataset.item] = Number(btn.dataset.value);
+      // update just this row so the page doesn't jump
+      const row = btn.closest(".likert-item");
+      row.querySelectorAll(".likert-btn").forEach(b => b.classList.remove("selected"));
+      btn.classList.add("selected");
+      row.classList.add("done");
+      $("errorMsg").textContent = "";
+    });
+  });
+  document.querySelectorAll(".chip").forEach(chip => {
+    chip.addEventListener("click", () => {
+      const id = chip.dataset.sub;
+      selectedSubs = selectedSubs.includes(id) ? selectedSubs.filter(s => s !== id) : [...selectedSubs, id];
+      chip.classList.toggle("selected");
+    });
+  });
+  if ($("budgetInput")) {
+    $("budgetInput").addEventListener("input", e => budget.amount = e.target.value);
+    $("periodSelect").addEventListener("change", e => budget.period = e.target.value);
+    $("budgetInput").addEventListener("keydown", e => { if (e.key === "Enter") next(); });
+    $("budgetInput").focus();
+  }
+  if ($("minInput")) {
+    $("minInput").addEventListener("input", e => minBudget = e.target.value);
+    $("minInput").addEventListener("keydown", e => { if (e.key === "Enter") next(); });
+    $("minInput").focus();
+  }
+  if ($("otherSubs")) {
+    $("otherSubs").addEventListener("input", e => otherSubs = e.target.value);
+  }
+}
+
+/* =========================================================
+   8. NAVIGATION + VALIDATION
+   ========================================================= */
+function next() {
+  const list = activeQuestions();
+  const q = list[step];
+  if (q.type === "budget" && !(Number(budget.amount) > 0)) {
+    $("errorMsg").textContent = "Please enter a budget greater than £0.";
+    return;
+  }
+  if (q.type === "minbudget" && !(Number(minBudget) > 0)) {
+    $("errorMsg").textContent = "Please enter a minimum budget greater than £0.";
+    return;
+  }
+  if (q.type === "choice" && answers[q.id] === undefined) {
+    $("errorMsg").textContent = "Please pick an option.";
+    return;
+  }
+  if (q.type === "multi" && !(answers[q.id] && answers[q.id].length)) {
+    $("errorMsg").textContent = q.options.some(o => o.none)
+      ? "Please pick at least one option (or \"none\")."
+      : "Please pick at least one option.";
+    return;
+  }
+  if (q.type === "likert" && TRAITS[q.trait].items.some(it => !ratings[it.id])) {
+    $("errorMsg").textContent = "Please rate every statement.";
+    return;
+  }
+  if (step < list.length - 1) {
+    step++;
+    renderStep();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  } else {
+    showResults();
+  }
+}
+
+function back() {
+  if (step > 0) { step--; renderStep(); }
+}
+
+/* =========================================================
+   9. THE BUDGET LOGIC
+   ========================================================= */
+function monthlyBudget() {
+  const amt = Number(budget.amount);
+  return budget.period === "week" ? amt * 52 / 12 : amt;
+}
+
+function subscriptionTotal() {
+  const chosen = SUBSCRIPTION_OPTIONS.filter(s => selectedSubs.includes(s.id))
+                                     .reduce((sum, s) => sum + s.price, 0);
+  return chosen + (Number(otherSubs) || 0);
+}
+
+// The options a user picked for a question (works for single and multi-select)
+function selectedOptions(q) {
+  const a = answers[q.id];
+  if (a === undefined) return [];
+  return (Array.isArray(a) ? a : [a]).map(i => q.options[i]);
+}
+
+// Did the user pick option `optId` in question `qid`?
+function has(qid, optId) {
+  return selectedOptions(QUESTIONS.find(q => q.id === qid)).some(o => o.id === optId);
+}
+
+// Did the user pick anything other than "none" in question `qid`?
+function hasAny(qid) {
+  return selectedOptions(QUESTIONS.find(q => q.id === qid)).some(o => !o.none);
+}
+
+// Add up "adds" or "costs" across every option the user picked
+function sumFromAnswers(field, start) {
+  const totals = { ...start };
+  QUESTIONS.forEach(q => {
+    if (q.type !== "choice" && q.type !== "multi") return;
+    selectedOptions(q).forEach(opt => {
+      if (opt[field]) {
+        for (const cat in opt[field]) totals[cat] = (totals[cat] || 0) + opt[field][cat];
+      }
+    });
+  });
+  return totals;
+}
+
+// A monthly Travelcard or Bus & Tram pass is a fixed cost (like a subscription).
+// A Travelcard also covers buses, so the bus pass isn't counted on top of it.
+function fixedTransportCost() {
+  const opts = selectedOptions(QUESTIONS.find(q => q.id === "transport"));
+  const travelcard = opts.find(o => o.group === "tube" && o.pass);
+  if (travelcard) return travelcard.pass;
+  const busPass = opts.find(o => o.id === "bus");
+  return busPass ? busPass.pass : 0;
+}
+
+// MODE 1: split a budget the user entered
+function buildPlanFromBudget(planKey) {
+  const p = personality();
+  const total = monthlyBudget();
+  const subs = Math.min(subscriptionTotal(), total);
+  const pass = Math.min(fixedTransportCost(), total - subs);   // Travelcard / bus pass comes out first
+  const afterFixed = total - subs - pass;
+  const buffer = afterFixed * bufferPercent(p);      // personality-based buffer
+  const remaining = afterFixed - buffer;
+
+  const w = sumFromAnswers("adds", BASE_WEIGHTS);
+  w.social *= socialMultiplier(p);                   // personality-based social nudge
+  const m = PLANS[planKey].multipliers;
+  const adjusted = {};
+  let weightSum = 0;
+  for (const cat in w) {
+    adjusted[cat] = w[cat] * m[cat];
+    weightSum += adjusted[cat];
+  }
+
+  const plan = { subscriptions: subs, buffer };
+  for (const cat in adjusted) plan[cat] = remaining * adjusted[cat] / weightSum;
+  plan.transport = (plan.transport || 0) + pass;     // pass + any extra travel (trains, taxis…)
+
+  // Round to whole pounds and make it add up exactly
+  const rounded = {};
+  let roundedSum = 0;
+  for (const cat in plan) {
+    rounded[cat] = Math.round(plan[cat]);
+    roundedSum += rounded[cat];
+  }
+  rounded.savings += Math.round(total) - roundedSum;
+  if (rounded.savings < 0) { rounded.groceries += rounded.savings; rounded.savings = 0; }
+  return rounded;
+}
+
+// MODE 2: suggest a budget from estimated £ costs of each habit,
+// never going below the user's minimum monthly budget
+function buildSuggestedPlan(planKey) {
+  const plan = habitPlan(planKey);
+  const shortfall = Math.round(Number(minBudget) || 0) - planTotal(plan);
+  if (shortfall > 0) plan.savings += shortfall;   // extra money below the minimum goes to savings
+  return plan;
+}
+
+// What your habits alone would cost on a plan (before applying the minimum)
+function habitPlan(planKey) {
+  const p = personality();
+  const costs = sumFromAnswers("costs", BASE_COSTS);
+  const m = PLANS[planKey].suggestMultipliers;
+  const plan = { subscriptions: Math.round(subscriptionTotal()) };
+  let spending = 0;
+  for (const cat in costs) {
+    plan[cat] = Math.round(costs[cat] * m[cat] / 5) * 5;     // nearest £5
+    if (cat === "transport") plan[cat] += Math.round(fixedTransportCost());   // a Travelcard can't be trimmed
+    if (cat !== "savings") spending += plan[cat];
+  }
+  plan.buffer = Math.round(spending * bufferPercent(p) / 5) * 5;
+  return plan;
+}
+
+function buildPlan(planKey) {
+  return getMode() === "suggest" ? buildSuggestedPlan(planKey) : buildPlanFromBudget(planKey);
+}
+
+function planTotal(plan) {
+  return Object.values(plan).reduce((a, b) => a + b, 0);
+}
+
+function recommendedPlan() {
+  const goalQ = QUESTIONS.find(q => q.id === "goal");
+  return goalQ.options[answers.goal].plan;
+}
+
+// Show an amount in the chosen view (monthly or weekly)
+function inView(monthly) {
+  return viewPeriod === "week" ? Math.round(monthly * 12 / 52) : monthly;
+}
+function otherView(monthly) {
+  return viewPeriod === "week" ? `£${monthly.toLocaleString()}/month` : `£${Math.round(monthly * 12 / 52)}/week`;
+}
+
+/* =========================================================
+   10. SHOW RESULTS
+   ========================================================= */
+function showResults() {
+  $("quiz").classList.add("hidden");
+  $("results").classList.remove("hidden");
+  $("tipsPanel").classList.remove("hidden");             // show the tips sidebar
+  document.querySelector("main").classList.add("wide");  // make the page wider for 2 columns
+  currentPlan = recommendedPlan();
+
+  // Less structured people see a weekly view by default – easier to stick to
+  const p = personality();
+  viewPeriod = p.structure.level === "low" ? "week" : "month";
+
+  if (getMode() === "suggest") {
+    const recTotal = planTotal(buildPlan(currentPlan));
+    const min = Math.round(Number(minBudget));
+    $("modePill").textContent = "🔮 Suggested budget";
+    $("resultsTitle").textContent = "Your suggested monthly budget";
+    $("resultsIntro").textContent =
+      `Based on your habits and money personality, we suggest a budget of about £${recTotal.toLocaleString()} a month ` +
+      `(your minimum is £${min.toLocaleString()}, not including rent and bills). Each plan shows how much you'd need – tap to compare.`;
+  } else {
+    const total = Math.round(monthlyBudget());
+    $("modePill").textContent = "💷 Planned around your budget";
+    $("resultsTitle").textContent = "Your recommended plans";
+    $("resultsIntro").textContent =
+      `Based on your habits and money personality, here's how we'd split £${total.toLocaleString()} a month. Tap a plan to compare.`;
+  }
+
+  renderPersona(p);
+  renderTabs();
+  renderPlan();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderPersona(p) {
+  const a = archetype(p);
+  const traitsHtml = Object.entries(TRAITS).map(([key, t]) => {
+    const score = p[key].score;
+    const pos = (score - 1) / 4 * 100;
+    return `
+      <div>
+        <div class="trait-top"><span>${t.name}</span><span>${score.toFixed(1)} / 5</span></div>
+        <div class="trait-track"><div class="trait-dot" style="left:${pos}%"></div></div>
+        <div class="trait-ends"><span>${t.low}</span><span>${t.high}</span></div>
+      </div>`;
+  }).join("");
+
+  // Explain how the personality changed the plan
+  const effects = [];
+  effects.push(`🎈 <strong>${Math.round(bufferPercent(p) * 100)}% flex buffer</strong> – sized from your spontaneity, structure and calm scores.`);
+  if (p.social.level === "high") effects.push("🍕 <strong>Social budget boosted</strong> – going out matters to you, so the plan makes room for it.");
+  if (p.social.level === "low") effects.push("🍕 <strong>Social budget trimmed</strong> – the extra goes to other categories and savings.");
+  effects.push(viewPeriod === "week"
+    ? "📅 <strong>Weekly view</strong> – smaller, shorter targets are easier to stick to when you prefer flexibility."
+    : "📅 <strong>Monthly view</strong> – you like planning ahead, so we show the full month.");
+
+  $("persona").innerHTML = `
+    <div class="persona-head">
+      <div class="persona-emoji">${a.emoji}</div>
+      <div>
+        <div class="persona-label">Your money personality</div>
+        <div class="persona-name">${a.name}</div>
+      </div>
+    </div>
+    <p class="persona-desc">${a.desc}</p>
+    <div class="traits">${traitsHtml}</div>
+    <div class="persona-effects">${effects.map(e => `<div>${e}</div>`).join("")}</div>
+    <p class="persona-note">Based on public-domain IPIP personality items. It's for self-reflection, not a diagnosis, and hasn't been scientifically tested for predicting spending.</p>`;
+}
+
+function renderTabs() {
+  const rec = recommendedPlan();
+  const suggest = getMode() === "suggest";
+  $("tabs").innerHTML = Object.entries(PLANS).map(([key, pl]) => `
+    <button class="tab ${key === currentPlan ? "active" : ""}" data-plan="${key}">
+      ${key === rec ? '<span class="badge">Recommended</span>' : ""}
+      <span class="tab-emoji">${pl.emoji}</span>${pl.name}
+      ${suggest ? `<span class="tab-total">£${planTotal(buildPlan(key)).toLocaleString()}/mo</span>` : ""}
+    </button>`).join("");
+  document.querySelectorAll(".tab").forEach(t => t.addEventListener("click", () => {
+    currentPlan = t.dataset.plan;
+    renderTabs();
+    renderPlan();
+  }));
+}
+
+function renderPlan() {
+  const plan = buildPlan(currentPlan);
+  const total = planTotal(plan);
+  $("planDesc").textContent = PLANS[currentPlan].desc;
+  $("viewMonth").classList.toggle("active", viewPeriod === "month");
+  $("viewWeek").classList.toggle("active", viewPeriod === "week");
+  $("centerTotal").textContent = "£" + inView(total).toLocaleString();
+  $("centerLabel").textContent = (getMode() === "suggest" ? "suggested " : "") + (viewPeriod === "week" ? "per week" : "per month");
+
+  const entries = Object.entries(plan).filter(([, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  const max = entries.length ? entries[0][1] : 1;
+
+  $("catList").innerHTML = entries.map(([cat, val]) => {
+    const c = CATEGORIES[cat];
+    const pct = Math.round(val / total * 100);
+    return `
+      <div class="cat">
+        <div class="cat-icon" style="background:${c.color}22">${c.icon}</div>
+        <div>
+          <div class="cat-name">${c.name} <span style="color:var(--muted);font-weight:400">· ${pct}%</span></div>
+          <div class="cat-bar"><div style="width:${val / max * 100}%;background:${c.color}"></div></div>
+        </div>
+        <div class="cat-amount">£${inView(val).toLocaleString()}<small>${otherView(val)}</small></div>
+      </div>`;
+  }).join("");
+
+  drawChart(entries);
+  renderTips(plan, total);
+}
+
+function drawChart(entries) {
+  if (typeof Chart === "undefined") return;   // no internet: skip the chart, everything else still works
+  const data = {
+    labels: entries.map(([cat]) => CATEGORIES[cat].name),
+    datasets: [{
+      data: entries.map(([, v]) => inView(v)),
+      backgroundColor: entries.map(([cat]) => CATEGORIES[cat].color),
+      borderWidth: 3,
+      borderColor: "#ffffff"
+    }]
+  };
+  if (chart) {
+    chart.data = data;
+    chart.update();
+    return;
+  }
+  chart = new Chart($("chart"), {
+    type: "doughnut",
+    data,
+    options: {
+      cutout: "68%",
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: £${ctx.raw}` } }
+      }
+    }
+  });
+}
+
+/* =========================================================
+   11. PERSONALISED TIPS
+   ========================================================= */
+function renderTips(plan, total) {
+  const tips = [];
+  const p = personality();
+  const pct = (cat) => total > 0 ? plan[cat] / total * 100 : 0;
+
+  // Personality-based tips
+  if (p.impulse.level === "high") {
+    tips.push({ type: "persona-tip", text: "🦋 Try the 24-hour rule: wait a day before any non-essential buy over £20. Your Flex Buffer covers the spontaneous plans worth saying yes to." });
+  }
+  if (p.structure.level === "low") {
+    tips.push({ type: "persona-tip", text: "🌈 Skip detailed tracking. Split your money into 3 pots (Essentials, Fun, Savings) and check in once a week." });
+  } else if (p.structure.level === "high") {
+    tips.push({ type: "persona-tip", text: "🗂️ You'll probably enjoy tracking. Use your bank app's spending categories, or log purchases in a notes app each day." });
+  }
+  if (p.social.level === "high") {
+    tips.push({ type: "persona-tip", text: "🎉 Plan your social spending: pick 1–2 bigger nights a month, and use free society events and pre-drinks for the rest." });
+  } else if (p.social.level === "low") {
+    tips.push({ type: "persona-tip", text: "🌙 You may not need a big social pot. Put anything left over into savings or a hobby you love." });
+  }
+  if (p.calm.level === "low") {
+    tips.push({ type: "persona-tip", text: "🛡️ Money worries are really common at uni. A small safety-net pot can make things feel more manageable, and your university's money advice team offers free, confidential help." });
+  }
+
+  // Habit-based tips
+  if (getMode() === "suggest") {
+    const min = Math.round(Number(minBudget));
+    const habitsCost = planTotal(habitPlan(currentPlan));
+    if (habitsCost > min) {
+      const saverCost = planTotal(habitPlan("saver"));
+      tips.push({ type: "warn", text: `Your habits on this plan cost about £${(habitsCost - min).toLocaleString()} more than your £${min.toLocaleString()} minimum. ` +
+        (saverCost <= min ? "The Saver plan fits within your minimum – try that one." : `Even the Saver plan is £${(saverCost - min).toLocaleString()} over, so look at cutting takeaways, shopping or subscriptions first.`) });
+    } else if (habitsCost < min) {
+      tips.push({ type: "good", text: `Nice – your habits cost less than your £${min.toLocaleString()} minimum, so the extra £${(min - habitsCost).toLocaleString()} has gone into savings.` });
+    }
+  }
+  if (pct("subscriptions") > 15) {
+    tips.push({ type: "warn", text: `Subscriptions take up ${Math.round(pct("subscriptions"))}% of your budget. Check for student discounts or cancel ones you rarely use.` });
+  }
+  if (has("eatout", "delivery")) {
+    tips.push({ type: "warn", text: "Delivery apps add up fast in London once you add service and delivery fees. Swapping two orders a week for home cooking or a supermarket meal deal could save £60–£80 a month." });
+  }
+  if (has("food", "campusLunch") && !has("food", "packLunch")) {
+    tips.push({ type: "", text: "🥪 Packing lunch even two days a week could save around £20–£25 a month compared with buying it on campus." });
+  }
+  if (has("food", "cookDinner")) {
+    tips.push({ type: "good", text: "Cooking at home is one of the best money habits. Batch-cook, split big packs with flatmates, and check Too Good To Go for cheap surplus food near campus." });
+  }
+
+  // London transport tips (2026 TfL fares)
+  const travelcard = ["z12", "z13", "z14"].some(id => has("transport", id));
+  if (travelcard || has("transport", "bus") || has("transport", "payg")) {
+    tips.push({ type: "", text: "🚇 Get an 18+ Student Oyster photocard: it gives 30% off Travelcards and Bus & Tram passes. You need to apply through TfL with your university." });
+  }
+  if (has("transport", "bus") && travelcard) {
+    tips.push({ type: "good", text: "🎫 Your Travelcard already covers buses, so you don't need a separate bus pass. We've only counted the Travelcard." });
+  } else if (has("transport", "bus")) {
+    tips.push({ type: "good", text: "🚌 With the Hopper fare, you can take unlimited buses within an hour for one £1.75 fare, and daily bus spending is capped at £5.25. Bus fares are expected to rise to £1.85 from 1 November 2026." });
+  }
+  if (has("transport", "payg")) {
+    tips.push({ type: "", text: "🚇 Pay-as-you-go is capped at £8.90 a day and £44.70 a week in Zones 1–2. If you start travelling most days, a student monthly Travelcard (£119.90) usually works out cheaper." });
+  }
+  if (travelcard && !has("transport", "bus")) {
+    tips.push({ type: "", text: "🎫 Your Travelcard covers unlimited buses too, so swap short Tube hops for the bus or a walk when the weather's nice." });
+  }
+  if (has("transport", "rail")) {
+    tips.push({ type: "good", text: "🚆 A 16–25 Railcard gets you a third off most rail fares. Full-time students aged 26 and over can get one too, and it pays for itself quickly if you go home often." });
+  }
+  if (has("transport", "taxi")) {
+    tips.push({ type: "", text: "🚕 For late nights, try night buses or the Night Tube (Friday and Saturday nights on several lines) instead of an Uber. Your Oyster cap still applies." });
+  }
+
+  // London lifestyle tips
+  if (hasAny("fun") || hasAny("goingout")) {
+    tips.push({ type: "good", text: "🏛️ Many of London's big museums and galleries are free, including the British Museum, Tate Modern, the National Gallery and the V&A. Student nights, society socials and TOTUM or UNiDAYS discounts help too." });
+  }
+  if (plan.savings > 0) {
+    tips.push({ type: "good", text: `Move your £${plan.savings} savings into a separate pot on payday, so it's out of sight before you start spending.` });
+  } else {
+    tips.push({ type: "warn", text: "There's nothing left for savings on this plan. Even £5 a week builds a small safety net." });
+  }
+  tips.push({ type: "", text: `Your weekly spending money (excluding savings and subscriptions) is about £${Math.round((total - plan.savings - plan.subscriptions) * 12 / 52)}.` });
+
+  $("tips").innerHTML = tips.map(t => `<div class="tip ${t.type}">${t.text}</div>`).join("");
+}
+
+/* =========================================================
+   12. BUTTONS
+   ========================================================= */
+$("nextBtn").addEventListener("click", next);
+$("backBtn").addEventListener("click", back);
+$("viewMonth").addEventListener("click", () => { viewPeriod = "month"; renderPlan(); });
+$("viewWeek").addEventListener("click", () => { viewPeriod = "week"; renderPlan(); });
+$("editBtn").addEventListener("click", () => {
+  $("results").classList.add("hidden");
+  $("tipsPanel").classList.add("hidden");                  // hide the tips sidebar
+  document.querySelector("main").classList.remove("wide");  // back to the narrow quiz layout
+  $("quiz").classList.remove("hidden");
+  step = 0;
+  renderStep();
+});
+$("restartBtn").addEventListener("click", () => {
+  answers = {}; ratings = {}; budget = { amount: "", period: "month" }; minBudget = "";
+  selectedSubs = []; otherSubs = ""; step = 0;
+  $("results").classList.add("hidden");
+  $("tipsPanel").classList.add("hidden");                  // hide the tips sidebar
+  document.querySelector("main").classList.remove("wide");  // back to the narrow quiz layout
+  $("quiz").classList.remove("hidden");
+  renderStep();
+});
+
+renderStep();
+</script>
+</body>
+</html>
